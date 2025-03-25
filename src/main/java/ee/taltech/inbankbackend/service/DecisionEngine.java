@@ -45,9 +45,19 @@ public class DecisionEngine {
         }
 
         int outputLoanAmount;
+
         creditModifier = getCreditModifier(personalCode);
 
         if (creditModifier == 0) {
+            System.out.println("credit modifier 0");
+            throw new NoValidLoanException("No valid loan found!");
+        }
+
+        double creditScore = (((double)creditModifier / loanAmount) * loanPeriod) / 10.0;
+
+        if (creditScore < 0.1) {
+            System.out.println("credit score: " + creditScore);
+            System.out.println("credit score doesnt enable loan");
             throw new NoValidLoanException("No valid loan found!");
         }
 
@@ -56,7 +66,8 @@ public class DecisionEngine {
         }
 
         if (loanPeriod <= DecisionEngineConstants.MAXIMUM_LOAN_PERIOD) {
-            outputLoanAmount = Math.min(DecisionEngineConstants.MAXIMUM_LOAN_AMOUNT, highestValidLoanAmount(loanPeriod));
+            System.out.println("credit score enables loan");
+            outputLoanAmount = (int)Math.min(DecisionEngineConstants.MAXIMUM_LOAN_AMOUNT, highestValidLoanAmount(loanPeriod));
         } else {
             throw new NoValidLoanException("No valid loan found!");
         }
@@ -89,10 +100,12 @@ public class DecisionEngine {
         if (segment < 2500) {
             return 0;
         } else if (segment < 5000) {
+            System.out.println("credit modifier 100");
             return DecisionEngineConstants.SEGMENT_1_CREDIT_MODIFIER;
         } else if (segment < 7500) {
+            System.out.println("credit modifier 300");
             return DecisionEngineConstants.SEGMENT_2_CREDIT_MODIFIER;
-        }
+        } System.out.println("credit modifier 1000");
 
         return DecisionEngineConstants.SEGMENT_3_CREDIT_MODIFIER;
     }
