@@ -1,12 +1,12 @@
 package ee.taltech.inbankbackend.service;
 
 import com.github.vladislavgoltjajev.personalcode.locale.estonia.EstonianPersonalCodeValidator;
+import ee.taltech.inbankbackend.config.AgeLimitConstants;
 import ee.taltech.inbankbackend.config.DecisionEngineConstants;
-import ee.taltech.inbankbackend.exceptions.InvalidLoanAmountException;
-import ee.taltech.inbankbackend.exceptions.InvalidLoanPeriodException;
-import ee.taltech.inbankbackend.exceptions.InvalidPersonalCodeException;
-import ee.taltech.inbankbackend.exceptions.NoValidLoanException;
+import ee.taltech.inbankbackend.exceptions.*;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
 
 /**
  * A service class that provides a method for calculating an approved loan amount and period for a customer.
@@ -37,7 +37,7 @@ public class DecisionEngine {
      */
     public Decision calculateApprovedLoan(String personalCode, Long loanAmount, int loanPeriod)
             throws InvalidPersonalCodeException, InvalidLoanAmountException, InvalidLoanPeriodException,
-            NoValidLoanException {
+            NoValidLoanException, InvalidAgeException {
         try {
             verifyInputs(personalCode, loanAmount, loanPeriod);
         } catch (Exception e) {
@@ -116,10 +116,13 @@ public class DecisionEngine {
      * @throws InvalidLoanPeriodException If the requested loan period is invalid
      */
     private void verifyInputs(String personalCode, Long loanAmount, int loanPeriod)
-            throws InvalidPersonalCodeException, InvalidLoanAmountException, InvalidLoanPeriodException {
+            throws InvalidPersonalCodeException, InvalidLoanAmountException, InvalidLoanPeriodException, InvalidAgeException {
 
         if (!validator.isValid(personalCode)) {
             throw new InvalidPersonalCodeException("Invalid personal ID code!");
+        }
+        if (!verifyAge(personalCode)) {
+            throw new InvalidAgeException("Your age doesn't meet the requirements!");
         }
         if (!(DecisionEngineConstants.MINIMUM_LOAN_AMOUNT <= loanAmount)
                 || !(loanAmount <= DecisionEngineConstants.MAXIMUM_LOAN_AMOUNT)) {
@@ -130,5 +133,54 @@ public class DecisionEngine {
             throw new InvalidLoanPeriodException("Invalid loan period!");
         }
 
+    }
+
+    /**
+     * Verify that the age of the user is valid according to business rules.
+     * If the age is invalid, then throws corresponding exception.
+     * Getting the country of the customer to according to the last four digits of their ID code.
+     *      * Estonia - 0000...3333
+     *      * Latvia - 3334...6666
+     *      * Lithuania - 6667...9999
+     *
+     * @param personalCode Provided personal ID code
+     */
+
+    private boolean verifyAge(String personalCode) {
+        String birthYearFirstPart = personalCode.substring(0,1);
+        String birthYearSecondPart = personalCode.substring(1,3);
+        int birthYear;
+        int month = Integer.parseInt(personalCode.substring(3,5));
+        int day = Integer.parseInt(personalCode.substring(5,7));
+        int adultAge = 18;
+        int maxAge;
+
+        if (birthYearFirstPart.equals("3") || birthYearFirstPart.equals("4")) {
+            birthYear = Integer.parseInt("19" + birthYearSecondPart);
+        } else {
+            birthYear = Integer.parseInt("20" + birthYearSecondPart);
+        }
+
+        LocalDate today = LocalDate.now();
+        int age = today.getYear() - birthYear;
+
+        if (today.getMonthValue() < month || (today.getMonthValue() == month && today.getDayOfMonth() < day)) {
+            age--;
+        }
+        if (age < adultAge) {
+            return false;
+        }
+
+        int segment = Integer.parseInt(personalCode.substring(personalCode.length() - 4));
+
+        if (segment < 3333) {
+            maxAge = AgeLimitConstants.LIFETIME_ESTONIA - AgeLimitConstants.MAXIMUM_LOAN_PERIOD;
+        } else if (segment < 6666) {
+            maxAge = AgeLimitConstants.LIFETIME_LATVIA - AgeLimitConstants.MAXIMUM_LOAN_PERIOD;
+        } else {
+            maxAge = AgeLimitConstants.LIFETIME_LITHUANIA - AgeLimitConstants.MAXIMUM_LOAN_PERIOD;
+        }
+
+        return age <= maxAge;
     }
 }
