@@ -21,6 +21,9 @@ class DecisionEngineTest {
     private String segment1PersonalCode;
     private String segment2PersonalCode;
     private String segment3PersonalCode;
+    private String underAgePersonalCode;
+    private String overMaxAgePersonalCode;
+    private String suitableAgePersonalCode;
 
     @BeforeEach
     void setUp() {
@@ -28,6 +31,9 @@ class DecisionEngineTest {
         segment1PersonalCode = "50307172740";
         segment2PersonalCode = "38411266610";
         segment3PersonalCode = "35006069515";
+        underAgePersonalCode = "60704279996";
+        overMaxAgePersonalCode = "34803269992";
+        suitableAgePersonalCode = "60703269995";
     }
 
     @Test
@@ -84,6 +90,26 @@ class DecisionEngineTest {
         String invalidPersonalCode = "12345678901";
         assertThrows(InvalidPersonalCodeException.class,
                 () -> decisionEngine.calculateApprovedLoan(invalidPersonalCode, 4000L, 12));
+    }
+
+    @Test
+    void testInvalidAgeUnderage() {
+        assertThrows(InvalidAgeException.class,
+                () -> decisionEngine.calculateApprovedLoan(underAgePersonalCode, 4000L, 12));
+    }
+
+    @Test
+    void testInvalidAgeOverMaxAge() {
+        assertThrows(InvalidAgeException.class,
+                () -> decisionEngine.calculateApprovedLoan(overMaxAgePersonalCode, 4000L, 12));
+    }
+
+    @Test
+    void testSuitableAge() throws InvalidLoanPeriodException, NoValidLoanException,
+            InvalidPersonalCodeException, InvalidLoanAmountException, InvalidAgeException {
+        Decision decision = decisionEngine.calculateApprovedLoan(suitableAgePersonalCode, 10000L, 12);
+        assertEquals(10000, decision.getLoanAmount());
+        assertEquals(12, decision.getLoanPeriod());
     }
 
     @Test
